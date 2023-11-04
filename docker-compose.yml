@@ -1,0 +1,71 @@
+services:
+  bank-discovery-service:
+    #The docker file in scrum-app build the jar and provides the docker image with the following name.
+    build: ./discovery-service
+    container_name: bank-discovery-service
+    ports:
+      - '8761:8761'
+    expose:
+      - '8761'
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
+  bank-config-service:
+    build: ./config-service
+    container_name: bank-config-service
+    ports:
+      - '8888:8888'
+    expose:
+      - '8888'
+    depends_on:
+      - bank-discovery-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+  bank-customer-service:
+    build: ./customer-service
+    container_name: bank-customer-service
+    ports:
+      - '8084:8084'
+    expose:
+      - '8084'
+    depends_on:
+      bank-discovery-service:
+        condition: service_healthy
+      bank-config-service:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8084/actuator/health" ]
+    environment:
+      - DISCOVERY_SERVICE_URL=http://bank-discovery-service:8761/eureka
+      - CONFIG_SERVER_URL=http://bank-config-service:8888/
+  bank-account-service:
+    build: ./account-service
+    container_name: bank-account-service
+    ports:
+      - '8083:8083'
+    expose:
+      - '8083'
+    depends_on:
+      bank-discovery-service:
+        condition: service_healthy
+      bank-config-service:
+        condition: service_healthy
+      bank-customer-service:
+        condition: service_healthy
+    environment:
+      - DISCOVERY_SERVICE_URL=http://bank-discovery-service:8761/eureka
+      - CONFIG_SERVER_URL=http://bank-config-service:8888/
+  bank-gateway-service:
+    build: ./gateway-service
+    container_name: bank-gateway-service
+    ports:
+      - '9999:9999'
+    expose:
+      - '9999'
+    depends_on:
+      bank-discovery-service:
+        condition: service_healthy
+      bank-config-service:
+        condition: service_healthy
+    environment:
+      - DISCOVERY_SERVICE_URL=http://bank-discovery-service:8761/eureka
+      - CONFIG_SERVER_URL=http://bank-config-service:8888/
